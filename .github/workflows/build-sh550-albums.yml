@@ -1,0 +1,126 @@
+name: Build SH550 facade executive albums
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'tools/build_sh550_albums.py'
+      - '.github/workflows/build-sh550-albums.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-sh550-facade-albums
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unar tesseract-ocr tesseract-ocr-rus fonts-dejavu-core
+
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            gdown==5.2.0 \
+            openpyxl==3.1.5 \
+            pypdf==5.9.0 \
+            reportlab==4.4.3 \
+            pymupdf==1.26.3 \
+            pytesseract==0.3.13 \
+            pillow==11.3.0 \
+            requests==2.32.4
+
+      - name: Build albums
+        id: build
+        shell: bash
+        run: |
+          rm -rf deliverables/sh550_facades_final .work_sh550
+          mkdir -p deliverables/sh550_facades_final
+          set +e
+          python tools/build_sh550_albums.py \
+            --output deliverables/sh550_facades_final \
+            --work .work_sh550 \
+            2>&1 | tee deliverables/sh550_facades_final/build.log
+          BUILD_CODE=${PIPESTATUS[0]}
+          echo "${BUILD_CODE}" > deliverables/sh550_facades_final/build_exit_code.txt
+          echo "build_code=${BUILD_CODE}" >> "$GITHUB_OUTPUT"
+          set -e
+
+      - name: Keep each committed file below the GitHub hard file limit
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import zipfile
+          out = Path('deliverables/sh550_facades_final')
+          master = out / 'SH550_Facade_Albums_FINAL.zip'
+          limit = 95 * 1024 * 1024
+          if master.exists() and master.stat().st_size > limit:
+              print(f'Master ZIP is {master.stat().st_size} bytes; rebuilding a lightweight delivery ZIP.')
+              master.unlink()
+              keep = []
+              for pattern in ('SH550_0*.pdf', 'SH550_QC_report.pdf', 'SH550_QC_registry.csv', 'SH550_QC_report.json', 'SH550_Final_Working_Registry.xlsx', 'BUILD_STATUS.txt', 'build.log'):
+                  keep.extend(out.glob(pattern))
+              with zipfile.ZipFile(master, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+                  for path in sorted(set(keep)):
+                      if path.is_file():
+                          zf.write(path, path.name)
+          oversized = [p for p in out.iterdir() if p.is_file() and p.stat().st_size > 99 * 1024 * 1024]
+          if oversized:
+              raise SystemExit('Files exceed GitHub 100 MB limit: ' + ', '.join(f'{p.name}={p.stat().st_size}' for p in oversized))
+          print('Deliverable sizes:')
+          for p in sorted(out.iterdir()):
+              if p.is_file():
+                  print(f'{p.stat().st_size:>12}  {p.name}')
+          PY
+
+      - name: Commit deliverables and diagnostic log
+        if: always()
+        shell: bash
+        run: |
+          git config user.name "SH550 Album Builder"
+          git config user.email "actions@users.noreply.github.com"
+          git config http.postBuffer 524288000
+          git add -A deliverables/sh550_facades_final
+          if git diff --cached --quiet; then
+            echo "No deliverable changes to commit."
+          else
+            git commit -m "Build final SH550 facade albums [skip ci]"
+            git push origin HEAD:master
+          fi
+
+      - name: Fail workflow when the builder failed
+        if: always()
+        shell: bash
+        run: |
+          CODE="${{ steps.build.outputs.build_code }}"
+          if [ -z "$CODE" ]; then CODE=1; fi
+          if [ "$CODE" != "0" ]; then
+            echo "SH550 builder failed with exit code $CODE"
+            exit "$CODE"
+          fi
+          test -s deliverables/sh550_facades_final/SH550_Facade_Albums_FINAL.zip
+          test -s deliverables/sh550_facades_final/BUILD_STATUS.txt
