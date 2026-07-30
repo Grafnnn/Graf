@@ -17,41 +17,24 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-rus
       - name: Install Python
         run: pip install --quiet gdown openpyxl pypdf reportlab requests
-      - name: Test project sources
+      - name: Inspect scan 0264
         shell: bash
         run: |
           mkdir -p diagnostic
           python - <<'PY'
-          import gdown, pathlib, os, json, traceback, subprocess
-          tests = {
-              'source_registry.xlsx': '1JCk8rtTP15rEGMZLOGcQpuQ-7MQH7WO1',
-              'working_registry.xlsx': '1IOnrLIEf3WBbysca2ql6OvQo-V3iCROH',
-              'sample.pdf': '1SPEK97tJ5X74i0wII1hq3wGuCcIbHt0M',
-              'scan_0264.pdf': '1Q_6hTMAUUdrSu8BZA4pCIH2-EWv6ktbm',
-          }
-          result={}
-          for name,fid in tests.items():
-              out=f'diagnostic/{name}'
-              try:
-                  r=gdown.download(id=fid, output=out, quiet=False)
-                  result[name]={'result':r,'exists':os.path.exists(out),'size':os.path.getsize(out) if os.path.exists(out) else 0}
-                  if name.endswith('.xlsx') and os.path.exists(out):
-                      import openpyxl
-                      wb=openpyxl.load_workbook(out,read_only=True,data_only=True)
-                      result[name]['sheets']=wb.sheetnames
-              except Exception as e:
-                  result[name]={'error':f'{type(e).__name__}: {e}','trace':traceback.format_exc()}
-          if os.path.exists('diagnostic/scan_0264.pdf'):
-              subprocess.run(['pdftoppm','-png','-r','180','diagnostic/scan_0264.pdf','diagnostic/scan'],check=True)
-              texts=[]
-              for img in sorted(pathlib.Path('diagnostic').glob('scan-*.png')):
-                  base=str(img.with_suffix(''))+'_ocr'
-                  subprocess.run(['tesseract',str(img),base,'-l','rus+eng'],check=False,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-                  txt=pathlib.Path(base+'.txt')
-                  texts.append(f'\n\n===== {img.name} =====\n'+(txt.read_text(encoding='utf-8',errors='ignore') if txt.exists() else ''))
-              pathlib.Path('diagnostic/scan_0264_ocr.txt').write_text(''.join(texts),encoding='utf-8')
-          pathlib.Path('diagnostic/result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-          print(json.dumps(result,ensure_ascii=False,indent=2))
+          import gdown, pathlib, subprocess
+          gdown.download(id='1Q_6hTMAUUdrSu8BZA4pCIH2-EWv6ktbm',output='diagnostic/scan_0264.pdf',quiet=False)
+          subprocess.run(['pdftoppm','-png','-r','220','diagnostic/scan_0264.pdf','diagnostic/scan'],check=True)
+          texts=[]
+          for img in sorted(pathlib.Path('diagnostic').glob('scan-*.png')):
+              base=str(img.with_suffix(''))+'_ocr'
+              subprocess.run(['tesseract',str(img),base,'-l','rus+eng'],check=False,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+              txt=pathlib.Path(base+'.txt')
+              content=txt.read_text(encoding='utf-8',errors='ignore') if txt.exists() else ''
+              texts.append(f'\n\n===== {img.name} =====\n{content}')
+          full=''.join(texts)
+          pathlib.Path('diagnostic/scan_0264_ocr.txt').write_text(full,encoding='utf-8')
+          print(full)
           PY
       - uses: actions/upload-artifact@v4
         if: always()
