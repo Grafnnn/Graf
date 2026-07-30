@@ -6,6 +6,12 @@ on:
     paths:
       - 'tools/build_sh550_albums.py'
       - '.github/workflows/build-sh550-albums.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'tools/build_sh550_albums.py'
+      - '.github/workflows/build-sh550-albums.yml'
+      - '.github/sh550-build-trigger.txt'
   workflow_dispatch:
 
 permissions:
@@ -21,9 +27,10 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - name: Checkout
+      - name: Checkout master for delivery build
         uses: actions/checkout@v4
         with:
+          ref: master
           fetch-depth: 0
 
       - name: Set up Python
