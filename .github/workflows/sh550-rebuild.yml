@@ -22,8 +22,11 @@ jobs:
         run: |
           python -m pip install --upgrade --quiet pip
           pip install --quiet gdown openpyxl pypdf reportlab pymupdf
-      - name: Compile rebuild script
-        run: python -m py_compile rebuild_sh550.py
+      - name: Apply runtime patch and compile rebuild script
+        shell: bash
+        run: |
+          sed -i 's/ws.iter_rows(min_row=2, values_only=True)/ws.iter_rows(min_row=2, max_col=len(headers), values_only=True)/' rebuild_sh550.py
+          python -m py_compile rebuild_sh550.py
       - name: Build albums, registries and archives
         shell: bash
         run: |
