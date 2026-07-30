@@ -20,7 +20,7 @@ jobs:
         run: |
           mkdir -p diagnostic
           python - <<'PY'
-          import gdown, pathlib, os, json, traceback
+          import gdown, pathlib, os, json, traceback, requests
           tests = {
               'registry.xlsx': '1JCk8rtTP15rEGMZLOGcQpuQ-7MQH7WO1',
               'sample.pdf': '1SPEK97tJ5X74i0wII1hq3wGuCcIbHt0M',
@@ -33,6 +33,21 @@ jobs:
                   result[name]={'result':r,'exists':os.path.exists(out),'size':os.path.getsize(out) if os.path.exists(out) else 0}
               except Exception as e:
                   result[name]={'error':f'{type(e).__name__}: {e}','trace':traceback.format_exc()}
+          url='https://docs.google.com/spreadsheets/d/1PXJNO1aBnl0vMbGVNUxUI9NlE3fSn0_aG7IrjQXPGt0/export?format=xlsx'
+          try:
+              r=requests.get(url,timeout=45,allow_redirects=True)
+              pathlib.Path('diagnostic/working_registry.xlsx').write_bytes(r.content)
+              result['working_registry.xlsx']={'status':r.status_code,'content_type':r.headers.get('content-type'),'size':len(r.content),'url':r.url}
+              try:
+                  import openpyxl
+                  wb=openpyxl.load_workbook('diagnostic/working_registry.xlsx',read_only=True,data_only=True)
+                  result['working_registry.xlsx']['sheets']=wb.sheetnames
+                  result['working_registry.xlsx']['valid_xlsx']=True
+              except Exception as e:
+                  result['working_registry.xlsx']['valid_xlsx']=False
+                  result['working_registry.xlsx']['xlsx_error']=f'{type(e).__name__}: {e}'
+          except Exception as e:
+              result['working_registry.xlsx']={'error':f'{type(e).__name__}: {e}','trace':traceback.format_exc()}
           pathlib.Path('diagnostic/result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
           print(json.dumps(result,ensure_ascii=False,indent=2))
           PY
