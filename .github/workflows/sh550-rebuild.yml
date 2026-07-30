@@ -1,0 +1,44 @@
+name: SH550 rebuild
+on:
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install --quiet gdown openpyxl pypdf reportlab requests
+      - name: Test Google Drive downloads
+        shell: bash
+        run: |
+          mkdir -p diagnostic
+          python - <<'PY'
+          import gdown, pathlib, os, json, traceback
+          tests = {
+              'registry.xlsx': '1JCk8rtTP15rEGMZLOGcQpuQ-7MQH7WO1',
+              'sample.pdf': '1SPEK97tJ5X74i0wII1hq3wGuCcIbHt0M',
+          }
+          result={}
+          for name,fid in tests.items():
+              out=f'diagnostic/{name}'
+              try:
+                  r=gdown.download(id=fid, output=out, quiet=False)
+                  result[name]={'result':r,'exists':os.path.exists(out),'size':os.path.getsize(out) if os.path.exists(out) else 0}
+              except Exception as e:
+                  result[name]={'error':f'{type(e).__name__}: {e}','trace':traceback.format_exc()}
+          pathlib.Path('diagnostic/result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(result,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sh550-diagnostic
+          path: diagnostic
+          retention-days: 2
