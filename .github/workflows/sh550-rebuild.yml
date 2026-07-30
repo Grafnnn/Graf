@@ -1,44 +1,54 @@
-name: SH550 rebuild
+name: SH550 clean rebuild
 on:
   pull_request:
     branches: [ master ]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
-  diagnostic:
+  build:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install system OCR
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils tesseract-ocr tesseract-ocr-rus
-      - name: Install Python
-        run: pip install --quiet gdown openpyxl pypdf reportlab requests
-      - name: Inspect scan 0264
+      - name: Install system PDF and OCR tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qpdf poppler-utils tesseract-ocr tesseract-ocr-rus fonts-dejavu-core
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade --quiet pip
+          pip install --quiet gdown openpyxl pypdf reportlab pymupdf
+      - name: Compile rebuild script
+        run: python -m py_compile rebuild_sh550.py
+      - name: Build albums, registries and archives
         shell: bash
         run: |
-          mkdir -p diagnostic
-          python - <<'PY'
-          import gdown, pathlib, subprocess
-          gdown.download(id='1Q_6hTMAUUdrSu8BZA4pCIH2-EWv6ktbm',output='diagnostic/scan_0264.pdf',quiet=False)
-          subprocess.run(['pdftoppm','-png','-r','220','diagnostic/scan_0264.pdf','diagnostic/scan'],check=True)
-          texts=[]
-          for img in sorted(pathlib.Path('diagnostic').glob('scan-*.png')):
-              base=str(img.with_suffix(''))+'_ocr'
-              subprocess.run(['tesseract',str(img),base,'-l','rus+eng'],check=False,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-              txt=pathlib.Path(base+'.txt')
-              content=txt.read_text(encoding='utf-8',errors='ignore') if txt.exists() else ''
-              texts.append(f'\n\n===== {img.name} =====\n{content}')
-          full=''.join(texts)
-          pathlib.Path('diagnostic/scan_0264_ocr.txt').write_text(full,encoding='utf-8')
-          print(full)
-          PY
-      - uses: actions/upload-artifact@v4
-        if: always()
+          set -o pipefail
+          python rebuild_sh550.py --output output --workers 5 2>&1 | tee build.log
+          cp build.log output/release/SH550_build.log
+          ls -lah output/release
+      - name: Upload complete rebuild artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: sh550-diagnostic
-          path: diagnostic
-          retention-days: 2
+          name: SH550_clean_rebuild
+          path: output/release
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+      - name: Publish downloadable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: sh550-facades-clean-rebuild-v2
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" output/release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$HEAD_SHA" \
+            --title "Ш550 — чистовая пересборка исполнительной документации по фасадам" \
+            --notes "Пять PDF-альбомов по вкладкам реестра, пять ZIP-архивов исходных файлов, обновленный рабочий реестр и отчет контроля. Протоколы АК-001 и АК-002 восстановлены из scan_0264.pdf после OCR-проверки."
