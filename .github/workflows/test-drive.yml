@@ -1,0 +1,37 @@
+name: Test Drive access
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test download
+        shell: bash
+        run: |
+          pip install --quiet gdown
+          mkdir -p testout
+          python - <<'PY'
+          import gdown, os, pathlib
+          url='https://drive.google.com/uc?id=1JCk8rtTP15rEGMZLOGcQpuQ-7MQH7WO1'
+          out='testout/source.xlsx'
+          try:
+              r=gdown.download(url, out, quiet=False, fuzzy=True)
+              pathlib.Path('testout/result.txt').write_text(f'result={r}\nexists={os.path.exists(out)}\nsize={os.path.getsize(out) if os.path.exists(out) else 0}\n', encoding='utf-8')
+          except Exception as e:
+              pathlib.Path('testout/result.txt').write_text(f'error={type(e).__name__}: {e}\n', encoding='utf-8')
+              raise
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drive-test
+          path: testout
+          retention-days: 1
