@@ -12,6 +12,8 @@ on:
       - 'tools/build_sh550_albums.py'
       - '.github/workflows/build-sh550-albums.yml'
       - '.github/sh550-build-trigger.txt'
+  schedule:
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
