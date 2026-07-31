@@ -1,0 +1,13 @@
+SUCCESS
+Generated: 2026-07-31T00:31:45.782240
+Registry positions: 195
+Placeholders: 13
+Positions without source PDF: 0
+RAR extracted: False; archive files: 28
+
+SH550_01_Brackets.pdf: 32 positions, 68 pages, 2 placeholders, 0 without source, 17018383 bytes, sha256=6eefc18970cc4537ff1029fe2793c286b435680b4ca3befaee5f09476a806bed
+SH550_02_Insulation_Layer_1.pdf: 30 positions, 43 pages, 2 placeholders, 0 without source, 21182914 bytes, sha256=c3dc352a4d9d22cd9626d8b109090a485cfb834a303c175cc0573a1d099850fc
+SH550_03_Insulation_Layer_2.pdf: 30 positions, 43 pages, 2 placeholders, 0 without source, 20837723 bytes, sha256=9d37815ab5a55f9fcc7b383e4911c8cd716d8fe54e2e7c6dee4f0e99f9fb367c
+SH550_04_Guides_Subsystem.pdf: 39 positions, 50 pages, 2 placeholders, 0 without source, 15489353 bytes, sha256=d253d7d557395e38034a0eeae77e846bbc4dd94846b0e3d6b29bba64b71fe36f
+SH550_05_Porcelain_Stoneware.pdf: 64 positions, 89 pages, 5 placeholders, 0 without source, 22845511 bytes, sha256=e59ce72be9b0fe7833050b4b96ea6865ec1fee5157e9a537d92c42f6ad17f961
+SH550_Facade_Albums_FINAL.zip: 191683776 bytes, sha256=d385956e31f6a4a8e6b7f1990259ca175b432689d679256525c78836a81bfd9c
