@@ -14,24 +14,23 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install test dependency
-        run: pip install --quiet gdown
-      - name: Test Google Drive download
+      - name: Install system packages
         run: |
-          mkdir -p out
-          gdown 1odIqvZCd65Tz7PrqBUJJF_chP6A9hQQn -O out/test.pdf
-          file out/test.pdf
-          sha256sum out/test.pdf > out/checksum.txt
-          ls -lh out/test.pdf >> out/checksum.txt
-      - name: Upload test artifact
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice-writer libreoffice-calc tesseract-ocr tesseract-ocr-rus poppler-utils fonts-dejavu fonts-liberation fonts-noto-core
+      - name: Install Python dependencies
+        run: pip install --quiet gdown pymupdf openpyxl pillow pytesseract reportlab pypdf
+      - name: Inspect source files
+        run: python automation/sh550/inspect_sources.py
+      - name: Upload inspection artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sh550-drive-test
+          name: sh550-source-inspection
           path: out/
           if-no-files-found: error
