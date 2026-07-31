@@ -29,7 +29,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install --quiet gdown pymupdf openpyxl pillow pytesseract reportlab pypdf
       - name: Build and validate final facade album
-        run: python automation/sh550/build_final_album.py
+        run: python automation/sh550/run_final_album.py
       - name: Show final manifest
         run: |
           cat final/manifest.json
