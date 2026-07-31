@@ -1,0 +1,37 @@
+name: SH550 final album build
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/sh550-final-album.yml'
+      - 'automation/sh550/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependency
+        run: pip install --quiet gdown
+      - name: Test Google Drive download
+        run: |
+          mkdir -p out
+          gdown --id 1odIqvZCd65Tz7PrqBUJJF_chP6A9hQQn -O out/test.pdf
+          file out/test.pdf
+          sha256sum out/test.pdf > out/checksum.txt
+          ls -lh out/test.pdf >> out/checksum.txt
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sh550-drive-test
+          path: out/
+          if-no-files-found: error
