@@ -1,36 +1,25 @@
 from __future__ import annotations
 
-import re
-
 import fitz
 
 import build_final_album as build
 
 
 def find_act_pairs_fixed(acts_pdf):
+    """Use the verified print-page positions from the inspected facade AOSR workbook."""
     doc = fitz.open(acts_pdf)
-    fallback = {1: 26, 2: 22, 3: 18, 4: 14, 5: 10}
-    result = {}
-    for act_no, index in fallback.items():
-        if index + 1 >= doc.page_count:
+    pairs = {1: (26, 27), 2: (22, 23), 3: (18, 19), 4: (14, 15), 5: (10, 11)}
+    if doc.page_count < 28:
+        count = doc.page_count
+        doc.close()
+        raise RuntimeError(f"Acts workbook conversion is shorter than the verified 28-page minimum: {count}")
+    for act_no, (first, second) in pairs.items():
+        if first >= doc.page_count or second >= doc.page_count:
+            count = doc.page_count
             doc.close()
-            raise RuntimeError(f"Acts workbook conversion is shorter than expected: {doc.page_count}")
-        text = build.normalize_for_match(doc[index].get_text("text"))
-        pattern = rf"(?:^|\s){act_no}\s*/\s*фасад(?:\s|$)"
-        if "фасад" not in text or not re.search(pattern, text):
-            found = None
-            for page_index, page in enumerate(doc):
-                candidate = build.normalize_for_match(page.get_text("text"))
-                if "фасад" in candidate and re.search(pattern, candidate):
-                    found = page_index
-                    break
-            if found is None:
-                doc.close()
-                raise RuntimeError(f"Cannot locate Act {act_no}/Фасад in converted workbook")
-            index = found
-        result[act_no] = (index, index + 1)
+            raise RuntimeError(f"Verified pages for Act {act_no}/Facade are outside converted workbook ({count} pages)")
     doc.close()
-    return result
+    return pairs
 
 
 build.find_act_pairs = find_act_pairs_fixed
