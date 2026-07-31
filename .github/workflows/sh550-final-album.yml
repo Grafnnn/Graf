@@ -1,0 +1,61 @@
+name: SH550 final album build
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/sh550-final-album.yml'
+      - 'automation/sh550/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install system packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice-writer libreoffice-calc tesseract-ocr tesseract-ocr-rus poppler-utils qpdf zip fonts-dejavu fonts-liberation fonts-noto-core
+      - name: Install Python dependencies
+        run: pip install --quiet gdown pymupdf openpyxl pillow pytesseract reportlab pypdf
+      - name: Build and validate final facade album
+        run: python automation/sh550/run_final_album.py
+      - name: Show final manifest
+        run: |
+          cat final/manifest.json
+          ls -lh final/
+      - name: Upload final artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SH550-Facades-Tom-2-FINAL
+          path: final/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Publish stable download release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: sh550-facades-final-v3
+        run: |
+          gh release delete "$TAG" --yes --cleanup-tag || true
+          gh release create "$TAG" \
+            final/SH550_Facades_Tom_2_FINAL.pdf \
+            final/SH550_Facades_Tom_2_FINAL.zip \
+            final/SH550_Facades_Tom_2_QC.xlsx \
+            final/SH550_Facades_Tom_2_QC.txt \
+            final/SH550_Facades_Tom_2_preview.png \
+            final/manifest.json \
+            --target "sh550-final-album-20260731" \
+            --title "Ш550 — Исполнительная документация фасадов — Том 2 — финал" \
+            --notes "Финальный единый альбом по общему реестру: 205 позиций, 252 листа документов, 266 физических страниц PDF. Заглушки исключены; вместо них подшиты максимально подходящие найденные листы. В комплект включена карта контроля соответствия."
