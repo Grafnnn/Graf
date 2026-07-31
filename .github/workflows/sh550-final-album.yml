@@ -25,7 +25,7 @@ jobs:
       - name: Test Google Drive download
         run: |
           mkdir -p out
-          gdown --id 1odIqvZCd65Tz7PrqBUJJF_chP6A9hQQn -O out/test.pdf
+          gdown 1odIqvZCd65Tz7PrqBUJJF_chP6A9hQQn -O out/test.pdf
           file out/test.pdf
           sha256sum out/test.pdf > out/checksum.txt
           ls -lh out/test.pdf >> out/checksum.txt
