@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import subprocess
 import sys
@@ -11,7 +10,6 @@ import fitz
 import gdown
 from openpyxl import load_workbook
 
-ROOT = Path(__file__).resolve().parent
 OUT = Path("out")
 SRC = OUT / "sources"
 OUT.mkdir(exist_ok=True)
@@ -35,7 +33,7 @@ def download(name: str, file_id: str) -> Path:
     path = SRC / name
     if not path.exists() or path.stat().st_size < 100:
         print(f"Downloading {name} ({file_id})")
-        result = gdown.download(id=file_id, output=str(path), quiet=False, fuzzy=True)
+        result = gdown.download(id=file_id, output=str(path), quiet=False)
         if not result or not path.exists():
             raise RuntimeError(f"Could not download {name} ({file_id})")
     return path
@@ -79,8 +77,9 @@ def inspect_pdf(path: Path) -> dict:
     pages = []
     for i, page in enumerate(doc):
         text = norm(page.get_text("text"))
-        score_prod = sum(1 for token in ["приказ", "производств", "ответствен", "работ"] if token in text.lower())
-        score_control = sum(1 for token in ["приказ", "строительн", "контрол", "ответствен"] if token in text.lower())
+        low = text.lower()
+        score_prod = sum(1 for token in ["приказ", "производств", "ответствен", "работ"] if token in low)
+        score_control = sum(1 for token in ["приказ", "строительн", "контрол", "ответствен"] if token in low)
         if score_prod >= 2 or score_control >= 3 or re.search(r"№\s*0?4|N[gоo]?\s*0?4|№\s*3|N[gоo]?\s*3", text, re.I):
             pages.append({"page": i + 1, "prod_score": score_prod, "control_score": score_control, "text": text[:3000]})
     return {"page_count": doc.page_count, "candidate_pages": pages}
